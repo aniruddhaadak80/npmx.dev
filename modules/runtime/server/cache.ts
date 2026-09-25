@@ -700,6 +700,14 @@ async function fetchFromFixtures<T>(
 
   // Handle version-specific requests for packuments (e.g., /create-vite/latest)
   let data: T = rawData
+  if (match.type === 'user' && Array.isArray(rawData.objects)) {
+    const searchParams = new URL(url).searchParams
+    const from = Number.parseInt(searchParams.get('from') || '0', 10) || 0
+    const size = Number.parseInt(searchParams.get('size') || '', 10)
+    if (size > 0) {
+      data = { ...rawData, objects: rawData.objects.slice(from, from + size) } as T
+    }
+  }
   if (match.type === 'packument' && match.version) {
     const packument = rawData as any
     let resolvedVersion = match.version
