@@ -5,8 +5,17 @@ test.describe('User profile pagination', () => {
     await goto('/~scroll-test?p=npm', { waitUntil: 'hydration' })
     await expect(page.locator('[data-result-index="0"]')).toBeVisible()
 
+    const initialState = await page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      innerHeight: window.innerHeight,
+      cards: document.querySelectorAll('[data-result-index]').length,
+    }))
+    expect(initialState.scrollHeight).toBeGreaterThan(initialState.innerHeight)
+    expect(initialState.cards).toBeGreaterThan(1)
+
+    await page.locator('main').hover()
     for (let attempt = 0; attempt < 5; attempt++) {
-      await page.mouse.wheel(0, 2000)
+      await page.keyboard.press('End')
       await page.waitForTimeout(250)
       if (new URL(page.url()).searchParams.get('page') === '2') break
     }
