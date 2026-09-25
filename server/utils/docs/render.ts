@@ -187,9 +187,9 @@ async function renderMergedSymbol(
 
   // Type-specific members
   if (symbol.kind === 'class' && primaryNode.classDef) {
-    lines.push(renderClassMembers(primaryNode.classDef))
+    lines.push(await renderClassMembers(primaryNode.classDef, symbolLookup))
   } else if (symbol.kind === 'interface' && primaryNode.interfaceDef) {
-    lines.push(renderInterfaceMembers(primaryNode.interfaceDef))
+    lines.push(await renderInterfaceMembers(primaryNode.interfaceDef, symbolLookup))
   } else if (symbol.kind === 'enum' && primaryNode.enumDef) {
     lines.push(renderEnumMembers(primaryNode.enumDef))
   }
@@ -298,20 +298,32 @@ type DefinitionListItem = {
   description?: string
 }
 
-function renderMemberList(title: string, items: DefinitionListItem[]): string {
+async function renderMemberList(
+  title: string,
+  items: DefinitionListItem[],
+  symbolLookup: SymbolLookup,
+): Promise<string> {
   const lines: string[] = []
 
   if (items.length === 0) {
     return ''
   }
 
+  const descriptions = await Promise.all(
+    items.map(item => {
+      const description = item.description?.trim()
+      return description ? renderMarkdown(description, symbolLookup) : ''
+    }),
+  )
+
   lines.push(`<div class="docs-members">`)
   lines.push(`<h4>${title}</h4>`)
   lines.push(`<dl>`)
-  for (const item of items) {
+  for (const [index, item] of items.entries()) {
     lines.push(`<dt><code>${escapeHtml(item.signature)}</code></dt>`)
-    if (item.description) {
-      lines.push(`<dd>${escapeHtml(item.description.split('\n')[0] ?? '')}</dd>`)
+    const description = descriptions[index]
+    if (description) {
+      lines.push(`<dd>${description}</dd>`)
     }
   }
   lines.push(`</dl>`)
@@ -323,7 +335,10 @@ function renderMemberList(title: string, items: DefinitionListItem[]): string {
 /**
  * Render class members (constructor, properties, methods).
  */
-function renderClassMembers(def: NonNullable<DenoDocNode['classDef']>): string {
+async function renderClassMembers(
+  def: NonNullable<DenoDocNode['classDef']>,
+  symbolLookup: SymbolLookup,
+): Promise<string> {
   const lines: string[] = []
   const { constructors, properties, methods } = def
 
@@ -353,7 +368,7 @@ function renderClassMembers(def: NonNullable<DenoDocNode['classDef']>): string {
       }
     })
 
-    lines.push(renderMemberList('Properties', propertyItems))
+    lines.push(await renderMemberList('Properties', propertyItems, symbolLookup))
   }
 
   const getters = methods?.filter(m => m.kind === 'getter') || []
@@ -370,7 +385,7 @@ function renderClassMembers(def: NonNullable<DenoDocNode['classDef']>): string {
       }
     })
 
-    lines.push(renderMemberList('Getters', getterItems))
+    lines.push(await renderMemberList('Getters', getterItems, symbolLookup))
   }
 
   if (regularMethods.length > 0) {
@@ -385,7 +400,7 @@ function renderClassMembers(def: NonNullable<DenoDocNode['classDef']>): string {
       }
     })
 
-    lines.push(renderMemberList('Methods', methodItems))
+    lines.push(await renderMemberList('Methods', methodItems, symbolLookup))
   }
 
   return lines.join('\n')
@@ -394,45 +409,36 @@ function renderClassMembers(def: NonNullable<DenoDocNode['classDef']>): string {
 /**
  * Render interface members (properties, methods).
  */
-function renderInterfaceMembers(def: NonNullable<DenoDocNode['interfaceDef']>): string {
+async function renderInterfaceMembers(
+  def: NonNullable<DenoDocNode['interfaceDef']>,
+  symbolLookup: SymbolLookup,
+): Promise<string> {
   const lines: string[] = []
   const { properties, methods } = def
 
   if (properties && properties.length > 0) {
-    lines.push(`<div class="docs-members">`)
-    lines.push(`<h4>Properties</h4>`)
-    lines.push(`<dl>`)
-    for (const prop of properties) {
+    const propertyItems = properties.map(prop => {
       const type = formatType(prop.tsType)
       const opt = prop.optional ? '?' : ''
       const ro = prop.readonly ? 'readonly ' : ''
-      lines.push(
-        `<dt><code>${escapeHtml(ro)}${escapeHtml(prop.name)}${opt}: ${escapeHtml(type)}</code></dt>`,
-      )
-      if (prop.jsDoc?.doc) {
-        lines.push(`<dd>${escapeHtml(prop.jsDoc.doc.split('\n')[0] ?? '')}</dd>`)
+      return {
+        signature: `${ro}${prop.name}${opt}: ${type}`,
+        description: prop.jsDoc?.doc,
       }
-    }
-    lines.push(`</dl>`)
-    lines.push(`</div>`)
+    })
+    lines.push(await renderMemberList('Properties', propertyItems, symbolLookup))
   }
 
   if (methods && methods.length > 0) {
-    lines.push(`<div class="docs-members">`)
-    lines.push(`<h4>Methods</h4>`)
-    lines.push(`<dl>`)
-    for (const method of methods) {
+    const methodItems = methods.map(method => {
       const params = formatParams(method.params)
       const ret = formatType(method.returnType) || 'void'
-      lines.push(
-        `<dt><code>${escapeHtml(method.name)}(${escapeHtml(params)}): ${escapeHtml(ret)}</code></dt>`,
-      )
-      if (method.jsDoc?.doc) {
-        lines.push(`<dd>${escapeHtml(method.jsDoc.doc.split('\n')[0] ?? '')}</dd>`)
+      return {
+        signature: `${method.name}(${params}): ${ret}`,
+        description: method.jsDoc?.doc,
       }
-    }
-    lines.push(`</dl>`)
-    lines.push(`</div>`)
+    })
+    lines.push(await renderMemberList('Methods', methodItems, symbolLookup))
   }
 
   return lines.join('\n')

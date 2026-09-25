@@ -42,11 +42,14 @@ function createFunctionSymbol(name: string, jsDoc?: DenoDocNode['jsDoc']): Merge
   }
 }
 
-function createInterfaceSymbol(name: string): MergedSymbol {
+function createInterfaceSymbol(
+  name: string,
+  interfaceDef: DenoDocNode['interfaceDef'] = {},
+): MergedSymbol {
   const node: DenoDocNode = {
     name,
     kind: 'interface',
-    interfaceDef: {},
+    interfaceDef,
   }
 
   return {
@@ -167,6 +170,51 @@ describe('issue #1943 - class getters separated from methods', () => {
   })
 })
 
+describe('issue #2843 - multiline property documentation', () => {
+  const description = [
+    'Module to import addIcon from. Candidate values:',
+    '',
+    '- Web Component for React: `@iconify-icon/react`',
+    '- Web Component for Solid: `@iconify-icon/solid`',
+    '- Vue: `@iconify/vue`',
+    '- React: `@iconify/react`',
+    '- Svelte: `@iconify/svelte`',
+  ].join('\n')
+  const renderedDescription =
+    'Module to import addIcon from. Candidate values:<br><br>- Web Component for React: <code class="docs-inline-code">@iconify-icon/react</code><br>- Web Component for Solid: <code class="docs-inline-code">@iconify-icon/solid</code><br>- Vue: <code class="docs-inline-code">@iconify/vue</code><br>- React: <code class="docs-inline-code">@iconify/react</code><br>- Svelte: <code class="docs-inline-code">@iconify/svelte</code>'
+
+  it('renders complete class property documentation', async () => {
+    const symbol = createClassSymbol({
+      properties: [
+        {
+          name: 'module',
+          tsType: { repr: 'string', kind: 'keyword', keyword: 'string' },
+          jsDoc: { doc: description },
+        },
+      ],
+    })
+
+    const html = await renderDocNodes([symbol], new Map())
+
+    expect(html).toContain(renderedDescription)
+  })
+
+  it('renders complete interface property documentation', async () => {
+    const symbol = createInterfaceSymbol('Options', {
+      properties: [
+        {
+          name: 'module',
+          tsType: { repr: 'string', kind: 'keyword', keyword: 'string' },
+          jsDoc: { doc: description },
+        },
+      ],
+    })
+
+    const html = await renderDocNodes([symbol], new Map())
+
+    expect(html).toContain(renderedDescription)
+  })
+})
 describe('renderDocNodes ordering', () => {
   it('preserves kind display order while rendering sections in parallel', async () => {
     const html = await renderDocNodes(
