@@ -13,10 +13,14 @@ test.describe('User profile pagination', () => {
     expect(initialState.scrollHeight).toBeGreaterThan(initialState.innerHeight)
     expect(initialState.cards).toBeGreaterThan(1)
 
-    const nextPageRequest = page.waitForRequest(
-      request => {
-        const url = new URL(request.url())
-        return url.pathname.endsWith('/-/v1/search') && url.searchParams.get('from') === '50'
+    const nextPageResponse = page.waitForResponse(
+      response => {
+        const url = new URL(response.url())
+        return (
+          response.status() === 200 &&
+          url.pathname.endsWith('/-/v1/search') &&
+          url.searchParams.get('from') === '50'
+        )
       },
       { timeout: 15000 },
     )
@@ -30,7 +34,7 @@ test.describe('User profile pagination', () => {
       await page.waitForTimeout(250)
       if (new URL(page.url()).searchParams.get('page') === '2') break
     }
-    await nextPageRequest
+    await nextPageResponse
     for (let attempt = 0; attempt < 2; attempt++) {
       await page.evaluate(() => {
         const scrollingElement = document.scrollingElement ?? document.documentElement
