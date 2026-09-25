@@ -13,9 +13,12 @@ test.describe('User profile pagination', () => {
     expect(initialState.scrollHeight).toBeGreaterThan(initialState.innerHeight)
     expect(initialState.cards).toBeGreaterThan(1)
 
-    await page.locator('main').hover()
     for (let attempt = 0; attempt < 5; attempt++) {
-      await page.keyboard.press('End')
+      await page.evaluate(() => {
+        const scrollingElement = document.scrollingElement ?? document.documentElement
+        scrollingElement.scrollTop = scrollingElement.scrollHeight
+        window.dispatchEvent(new Event('scroll'))
+      })
       await page.waitForTimeout(250)
       if (new URL(page.url()).searchParams.get('page') === '2') break
     }
