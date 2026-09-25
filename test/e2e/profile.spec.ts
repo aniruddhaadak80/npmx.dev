@@ -5,7 +5,11 @@ test.describe('User profile pagination', () => {
     await goto('/~scroll-test?p=npm', { waitUntil: 'hydration' })
     await expect(page.locator('[data-result-index="0"]')).toBeVisible()
 
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await page.mouse.wheel(0, 2000)
+      await page.waitForTimeout(250)
+      if (new URL(page.url()).searchParams.get('page') === '2') break
+    }
     await expect(page).toHaveURL(/[?&]page=2(?:&|$)/)
 
     const scrollTop = await page.evaluate(() => window.scrollY)
