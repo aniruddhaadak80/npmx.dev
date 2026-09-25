@@ -31,6 +31,15 @@ test.describe('User profile pagination', () => {
       if (new URL(page.url()).searchParams.get('page') === '2') break
     }
     await nextPageRequest
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await page.evaluate(() => {
+        const scrollingElement = document.scrollingElement ?? document.documentElement
+        scrollingElement.scrollTop = scrollingElement.scrollHeight
+        window.dispatchEvent(new Event('scroll'))
+      })
+      await page.waitForTimeout(250)
+      if (new URL(page.url()).searchParams.get('page') === '2') break
+    }
     await expect(page).toHaveURL(/[?&]page=2(?:&|$)/)
 
     const scrollTop = await page.evaluate(() => window.scrollY)
