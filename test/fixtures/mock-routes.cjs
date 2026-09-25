@@ -115,7 +115,13 @@ function matchNpmRegistry(urlString) {
       const maintainerMatch = query.match(/^maintainer:(.+)$/)
       if (maintainerMatch && maintainerMatch[1]) {
         const fixture = readFixture(`users/${maintainerMatch[1]}.json`)
-        return json(fixture || { objects: [], total: 0, time: new Date().toISOString() })
+        if (!fixture) {
+          return json({ objects: [], total: 0, time: new Date().toISOString() })
+        }
+        const from = Number.parseInt(url.searchParams.get('from') || '0', 10) || 0
+        const size =
+          Number.parseInt(url.searchParams.get('size') || '', 10) || fixture.objects.length
+        return json({ ...fixture, objects: fixture.objects.slice(from, from + size) })
       }
 
       const searchName = query.replace(/:/g, '-')

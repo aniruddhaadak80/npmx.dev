@@ -3,20 +3,28 @@ import { debounce } from 'perfect-debounce'
 import { normalizeSearchParam } from '#shared/utils/url'
 
 const route = useRoute('~username')
-const router = useRouter()
 
 const username = computed(() => route.params.username.toLowerCase())
 
 // Debounced URL update for page and filter/sort
 const updateUrl = debounce((updates: { page?: number; filter?: string; sort?: string }) => {
-  router.replace({
-    query: {
-      ...route.query,
-      page: updates.page && updates.page > 1 ? updates.page : undefined,
-      q: updates.filter || undefined,
-      sort: updates.sort && updates.sort !== 'downloads' ? updates.sort : undefined,
-    },
-  })
+  const url = new URL(window.location.href)
+  if (updates.page && updates.page > 1) {
+    url.searchParams.set('page', updates.page.toString())
+  } else {
+    url.searchParams.delete('page')
+  }
+  if (updates.filter) {
+    url.searchParams.set('q', updates.filter)
+  } else {
+    url.searchParams.delete('q')
+  }
+  if (updates.sort && updates.sort !== 'downloads') {
+    url.searchParams.set('sort', updates.sort)
+  } else {
+    url.searchParams.delete('sort')
+  }
+  window.history.replaceState(window.history.state, '', url)
 }, 300)
 
 type SortOption = 'downloads' | 'updated' | 'name-asc' | 'name-desc'
@@ -31,6 +39,11 @@ const sortOption = shallowRef<SortOption>(
 const debouncedUpdateUrl = debounce((filter: string, sort: string) => {
   updateUrl({ filter, sort })
 }, 300)
+
+onBeforeUnmount(() => {
+  updateUrl.cancel()
+  debouncedUpdateUrl.cancel()
+})
 
 // Load all results when user starts filtering/sorting (so client-side filter works on full set)
 watch([filterText, sortOption], ([filter, sort]) => {
