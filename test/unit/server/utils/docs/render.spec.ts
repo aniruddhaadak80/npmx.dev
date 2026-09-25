@@ -215,6 +215,7 @@ describe('issue #2843 - multiline property documentation', () => {
     expect(html).toContain(renderedDescription)
   })
 })
+
 describe('renderDocNodes ordering', () => {
   it('preserves kind display order while rendering sections in parallel', async () => {
     const html = await renderDocNodes(
